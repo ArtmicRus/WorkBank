@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System.Reflection.Emit;
 using WorkBank.Domain.Models;
 
 namespace WorkBank.Database.Configurations
@@ -14,6 +15,11 @@ namespace WorkBank.Database.Configurations
 
             builder
                 .Property(pers => pers.LastName);
+
+            builder
+                .HasOne(p => p.Passport)
+                .WithOne(pp => pp.Person)
+                .HasForeignKey<Passport>(pp => pp.PersonId); // Указываем внешний ключ
 
             //builder
             //    .HasOne(p => p.Passport)

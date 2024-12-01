@@ -2,11 +2,6 @@
 {
     public class Person : BaseEntity
     {
-        //public Person(Passport passport) 
-        //{
-        //    Passport = passport;
-        //}
-
         public string FirstName { get; set; } = string.Empty;
 
         public string LastName { get; set; } = string.Empty;
@@ -15,6 +10,6 @@
 
         //public long PassportId {  get; set; }
 
-        //public Passport Passport { get; set; }
+        public Passport Passport { get; set; }
     }
 }
