@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Gateway\Gateway.csproj" />
     <ProjectReference Include="..\WorkBank.Infrostructure.Persistence\WorkBank.Infrostructure.Persistence.csproj" />
   </ItemGroup>
 

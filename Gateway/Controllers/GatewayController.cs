@@ -82,7 +82,7 @@ namespace Gateway.Controllers
 
             if (request.Request.Summa < 10000 || request.Request.Summa > 10000000)
             {
-                errorMessage.AppendLine("Сумма запроса должна быть в диапозоне от 10'000 до 10'000'000");
+                errorMessage.AppendLine("Сумма запроса должна быть в диапозоне от 10000 до 10000000");
             }
 
             if (request.Request.Period < 3 || request.Request.Period > 120)
