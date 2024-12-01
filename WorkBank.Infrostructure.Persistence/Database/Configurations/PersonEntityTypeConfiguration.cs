@@ -14,6 +14,11 @@ namespace WorkBank.Database.Configurations
 
             builder
                 .Property(pers => pers.LastName);
+
+            //builder
+            //    .HasOne(p => p.Passport)
+            //    .WithOne()
+            //    .HasForeignKey("PassportId");
         }
     }
 }

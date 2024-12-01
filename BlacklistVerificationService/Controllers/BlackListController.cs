@@ -1,5 +1,6 @@
 using Gateway.Dtos;
 using Microsoft.AspNetCore.Mvc;
+using WorkBank.Infrostructure.Persistence.Database.Interfaces;
 
 namespace BlacklistVerificationService.Controllers
 {
@@ -7,28 +8,20 @@ namespace BlacklistVerificationService.Controllers
     [Route("[controller]")]
     public class BlackListController : ControllerBase
     {
-        private static readonly string[] Summaries = new[]
-        {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
-
         private readonly ILogger<BlackListController> _logger;
+        private readonly IApplicationDbContext _applicationDbContext;
 
-        public BlackListController(ILogger<BlackListController> logger)
+        public BlackListController(ILogger<BlackListController> logger, IApplicationDbContext applicationDbContext)
         {
             _logger = logger;
+            _applicationDbContext = applicationDbContext;
         }
 
-        [HttpGet(Name = "GetWeatherForecast")]
-        public IEnumerable<WeatherForecast> Get(PassportDto passportDto)
+        [HttpGet]
+        [Route("check-blacklist")]
+        public IActionResult Get([FromQuery]PassportDto passportDto)
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
-            {
-                Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                TemperatureC = Random.Shared.Next(-20, 55),
-                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-            })
-            .ToArray();
+            return Ok("Привет лох");
         }
     }
 }
