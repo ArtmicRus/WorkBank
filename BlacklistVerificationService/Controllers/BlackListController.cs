@@ -1,3 +1,4 @@
+using Gateway.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BlacklistVerificationService.Controllers
@@ -19,7 +20,7 @@ namespace BlacklistVerificationService.Controllers
         }
 
         [HttpGet(Name = "GetWeatherForecast")]
-        public IEnumerable<WeatherForecast> Get()
+        public IEnumerable<WeatherForecast> Get(PassportDto passportDto)
         {
             return Enumerable.Range(1, 5).Select(index => new WeatherForecast
             {

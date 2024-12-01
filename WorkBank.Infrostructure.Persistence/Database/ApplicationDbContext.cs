@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using WorkBank.Database.Configurations;
-using WorkBank.Models;
+using WorkBank.Domain.Models;
+using WorkBank.Infrostructure.Persistence.Database.Interfaces;
 
 namespace WorkBank.Database
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : DbContext, IApplicationDbContext
     {
         public DbSet<Person> Persons => Set<Person>();
 

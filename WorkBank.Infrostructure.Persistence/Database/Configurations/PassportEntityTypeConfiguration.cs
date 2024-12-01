@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using WorkBank.Models;
+using WorkBank.Domain.Models;
 
 namespace WorkBank.Database.Configurations
 {

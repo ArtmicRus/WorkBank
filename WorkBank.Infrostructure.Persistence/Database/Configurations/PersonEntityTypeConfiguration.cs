@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System.Reflection.Metadata;
-using WorkBank.Models;
+using WorkBank.Domain.Models;
 
 namespace WorkBank.Database.Configurations
 {
@@ -14,8 +13,7 @@ namespace WorkBank.Database.Configurations
                 .IsRequired();
 
             builder
-                .Property(pers => pers.LastName)
-                .HasDefaultValue("Петрович");
+                .Property(pers => pers.LastName);
         }
     }
 }
