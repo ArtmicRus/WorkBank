@@ -8,6 +8,11 @@ namespace WorkBank.Infrostructure.Persistence.Database.Interfaces
         /// <summary>
         /// Паспорта
         /// </summary>
+        DbSet<Credit> Credits { get; }
+
+        /// <summary>
+        /// Паспорта
+        /// </summary>
         DbSet<Passport> Passports { get; }
 
         /// <summary>

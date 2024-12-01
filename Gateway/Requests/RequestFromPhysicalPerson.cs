@@ -1,5 +1,4 @@
-﻿using Gateway.Dtos;
-using WorkBank.Domain.Models;
+﻿using WorkBank.Domain.Dtos;
 
 namespace Gateway.Requests
 {

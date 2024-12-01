@@ -1,5 +1,5 @@
-using Gateway.Dtos;
 using Microsoft.AspNetCore.Mvc;
+using WorkBank.Domain.Dtos;
 using WorkBank.Infrostructure.Persistence.Database.Interfaces;
 
 namespace PassportDataService.Controllers

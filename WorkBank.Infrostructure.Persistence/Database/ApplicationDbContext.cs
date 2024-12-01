@@ -7,6 +7,8 @@ namespace WorkBank.Database
 {
     public class ApplicationDbContext : DbContext, IApplicationDbContext
     {
+        public DbSet<Credit> Credits => Set<Credit>();
+
         public DbSet<Person> Persons => Set<Person>();
 
         public DbSet<Passport> Passports => Set<Passport>();

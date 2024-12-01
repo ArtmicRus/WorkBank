@@ -1,12 +1,10 @@
-using Gateway.Dtos;
 using Gateway.Requests;
-using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Mvc;
 using RabbitMQ.Client;
-using System;
-using System.Runtime.Serialization;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using WorkBank.Domain.Dtos;
 using WorkBank.Domain.Models;
 using WorkBank.Infrostructure.Persistence.Database.Interfaces;
 
@@ -52,22 +50,35 @@ namespace Gateway.Controllers
         {
             StringBuilder errorMessage = new StringBuilder();
 
+            var passportDataServiceUrl = $"http://localhost:5129/Passport/person-information?Serie={request.Passport.Serie}&Number={request.Passport.Number}";
+            var response = _httpClient.GetAsync(passportDataServiceUrl);
+
+            if(response.Result.StatusCode == HttpStatusCode.OK)
+            {
+                var passportDataServiceResponse = response.Result.Content.ReadFromJsonAsync<PersonDto>().Result;
+
+                if (passportDataServiceResponse is not null)
+                {
+                    if (request.Person.FirstName != passportDataServiceResponse.FirstName ||
+                        request.Person.LastName != passportDataServiceResponse.LastName ||
+                        request.Person.Birthdate != passportDataServiceResponse.Birthdate)
+                    {
+                        errorMessage.AppendLine("Паспортные данные не соответствуют информации о физ лице");
+                    }
+                }
+                else
+                    errorMessage.AppendLine("Пользователь не зарегистрирован в системе");
+            }
+            else
+            {
+                errorMessage.AppendLine("Пользователь не зарегистрирован в системе");
+            }
+
             var person = _applicationDbContext.Persons
                 .Where(p => p.Passport.Serie == request.Passport.Serie
                     && p.Passport.Number == request.Passport.Number)
                 .FirstOrDefault();
 
-            if (person is not null)
-            {
-                if (request.Person.FirstName != person.FirstName ||
-                    request.Person.LastName != person.LastName ||
-                    request.Person.Birthdate != person.Birthdate)
-                {
-                    errorMessage.AppendLine("Предоставленные данные не совпадают с регистрационными");
-                }
-            }
-            else
-                errorMessage.AppendLine("Пользователь не зарегистрирован в системе");
 
             if (request.Request.Summa < 10000 || request.Request.Summa > 10000000)
             {
@@ -87,11 +98,11 @@ namespace Gateway.Controllers
                 errorMessage.AppendLine("Оформить кредит можно только лицам достигшим 18 лет");
             }
 
-            var url = $"http://localhost:5010/BlackList/check-blacklist?Serie={request.Passport.Serie}&Number={request.Passport.Number}";
-            var response = _httpClient.GetAsync(url);
+            var blackListUrl = $"http://localhost:5010/BlackList/check-blacklist?Serie={request.Passport.Serie}&Number={request.Passport.Number}";
+            var blackListResponse = _httpClient.GetAsync(blackListUrl);
 
-            var resultString = response.Result.Content.ReadAsStringAsync().Result;
-            if (bool.TryParse(resultString, out bool isBlocked))
+            var blackListResultString = blackListResponse.Result.Content.ReadAsStringAsync().Result;
+            if (bool.TryParse(blackListResultString, out bool isBlocked))
             {
                 if (isBlocked)
                 {
@@ -103,12 +114,36 @@ namespace Gateway.Controllers
                 return BadRequest("Invalid boolean value received from the other API.");
             }
 
+            if (person is not null)
+            {
+                var personCredits =_applicationDbContext.Credits.Where(c => c.PersonId == person.Id);
+                if (personCredits.Count() >= 5)
+                {
+                    errorMessage.AppendLine("У вас не может быть больше 5 кредитов");
+                }
 
+                decimal creditsSum = personCredits.Sum(x => x.Summa);
+                creditsSum = creditsSum + request.Request.Summa;
 
-            SendToRabbit(request);
+                if (creditsSum > 20000000)
+                {
+                    errorMessage.AppendLine("Сумма ваших кредитов не может привышать 20'000'000");
+                }
+            }
+
+            //SendToRabbit(request);
 
             if(errorMessage.Length > 0)
                 return BadRequest(errorMessage.ToString());
+
+            Credit credit = new Credit 
+            {
+                Summa = request.Request.Summa,
+                Period = request.Request.Period,
+                PersonId = person.Id
+            };
+
+            _applicationDbContext.Credits.Add(credit);
 
             return Ok("Кредит успешно оформлен");
         }
