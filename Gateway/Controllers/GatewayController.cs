@@ -1,3 +1,4 @@
+using Gateway.Dtos;
 using Gateway.Requests;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Mvc;
@@ -28,19 +29,95 @@ namespace Gateway.Controllers
         /// <summary>
         /// 
         /// </summary>
+        private readonly HttpClient _httpClient;
+
+        /// <summary>
+        /// 
+        /// </summary>
         /// <param name="logger"></param>
         /// <param name="applicationDbContext"></param>
         public GatewayController(ILogger<GatewayController> logger,
-            IApplicationDbContext applicationDbContext)
+            IApplicationDbContext applicationDbContext,
+            HttpClient httpClient)
         {
             _logger = logger;
             _applicationDbContext = applicationDbContext;
+            _httpClient = httpClient;
         }
 
 
         [HttpPost]
         [Route("post-request")]
-        public IEnumerable<Person> Get(RequestFromPhysicalPerson request)
+        public IActionResult Get(RequestFromPhysicalPerson request)
+        {
+            StringBuilder errorMessage = new StringBuilder();
+
+            var person = _applicationDbContext.Persons
+                .Where(p => p.Passport.Serie == request.Passport.Serie
+                    && p.Passport.Number == request.Passport.Number)
+                .FirstOrDefault();
+
+            if (person is not null)
+            {
+                if (request.Person.FirstName != person.FirstName ||
+                    request.Person.LastName != person.LastName ||
+                    request.Person.Birthdate != person.Birthdate)
+                {
+                    errorMessage.AppendLine("Предоставленные данные не совпадают с регистрационными");
+                }
+            }
+            else
+                errorMessage.AppendLine("Пользователь не зарегистрирован в системе");
+
+            if (request.Request.Summa < 10000 || request.Request.Summa > 10000000)
+            {
+                errorMessage.AppendLine("Сумма запроса должна быть в диапозоне от 10'000 до 10'000'000");
+            }
+
+            if (request.Request.Period < 3 || request.Request.Period > 120)
+            {
+                errorMessage.AppendLine("Период погашения кредита должн быть в диапозоне от 3 месяцев до 10 лет");
+            }
+
+            var dateOnly = request.Person.Birthdate;
+            var dateTime = new DateTime(dateOnly.Year, dateOnly.Month, dateOnly.Day);
+
+            if (IsAdult(dateTime))
+            {
+                errorMessage.AppendLine("Оформить кредит можно только лицам достигшим 18 лет");
+            }
+
+            var url = $"http://localhost:5010/BlackList/check-blacklist?Serie={request.Passport.Serie}&Number={request.Passport.Number}";
+            var response = _httpClient.GetAsync(url);
+
+            var resultString = response.Result.Content.ReadAsStringAsync().Result;
+            if (bool.TryParse(resultString, out bool isBlocked))
+            {
+                if (isBlocked)
+                {
+                    errorMessage.AppendLine("Пользователь находится в чёрном списке");
+                }
+            }
+            else
+            {
+                return BadRequest("Invalid boolean value received from the other API.");
+            }
+
+
+
+            SendToRabbit(request);
+
+            if(errorMessage.Length > 0)
+                return BadRequest(errorMessage.ToString());
+
+            return Ok("Кредит успешно оформлен");
+        }
+
+        /// <summary>
+        /// Отправка сообщения в кролика
+        /// </summary>
+        /// <param name="request"></param>
+        private Task SendToRabbit(RequestFromPhysicalPerson request)
         {
             // Создание подключения к серверу
             var factory = new ConnectionFactory { HostName = "localhost" };
@@ -64,7 +141,25 @@ namespace Gateway.Controllers
                                  basicProperties: null, // Свойства сообщения. Это могут быть такие параметры, как заголовки, идентификатор сообщения, приоритет и т.п. В примере эти свойства не указаны (null), так что будут использованы стандартные значения.
                                  body: body); // Тело сообщения. Здесь передается непосредственно само сообщение, которое нужно отправить. В переменной body содержится информация, которую вы хотите передать через RabbitMQ
 
-            return _applicationDbContext.Persons.ToList();
+            return Task.CompletedTask;
+        }
+
+        private static bool IsAdult(DateTime dateOfBirth)
+        {
+            // Текущая дата
+            DateTime today = DateTime.Today;
+
+            // Вычисляем возраст
+            int age = today.Year - dateOfBirth.Year;
+
+            // Проверяем, не был ли день рождения в этом году
+            if (dateOfBirth.Date > today.AddYears(-age))
+            {
+                age--;
+            }
+
+            // Возвращаем true, если возраст больше или равен 18 лет
+            return age >= 18;
         }
     }
 }

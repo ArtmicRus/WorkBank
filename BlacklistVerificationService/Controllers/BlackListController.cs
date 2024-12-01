@@ -21,7 +21,7 @@ namespace BlacklistVerificationService.Controllers
         [Route("check-blacklist")]
         public IActionResult Get([FromQuery]PassportDto passportDto)
         {
-            return Ok("Привет лох");
+            return Ok(true);
         }
     }
 }

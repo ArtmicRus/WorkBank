@@ -9,6 +9,6 @@ namespace Gateway.Requests
 
         public PassportDto Passport { get; set; }
 
-        public Request Request { get; set; }
+        public RequestDto Request { get; set; }
     }
 }
