@@ -13,7 +13,7 @@ namespace WorkBank.Database.Configurations
                 .IsRequired();
 
             builder
-                .Property(pass => pass.Sirie)
+                .Property(pass => pass.Serie)
                 .IsRequired();
         }
     }
