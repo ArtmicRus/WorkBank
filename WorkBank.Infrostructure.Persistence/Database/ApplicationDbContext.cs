@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using WorkBank.Database.Configurations;
 using WorkBank.Domain.Models;
+using WorkBank.Infrostructure.Persistence.Database.Configurations;
 using WorkBank.Infrostructure.Persistence.Database.Interfaces;
 
 namespace WorkBank.Database
@@ -22,6 +23,7 @@ namespace WorkBank.Database
         {
             new PassportEntityTypeConfiguration().Configure(modelBuilder.Entity<Passport>());
             new PersonEntityTypeConfiguration().Configure(modelBuilder.Entity<Person>());
+            new CreditEntityTypeConfiguration().Configure(modelBuilder.Entity<Credit>());
         }
     }
 

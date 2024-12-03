@@ -40,7 +40,7 @@ namespace PassportDataService.Controllers
 
             if (person is not null)
             {
-                PersonDto pDto = new PersonDto
+                PersonPassportDataDto pDto = new PersonPassportDataDto
                 {
                     Id = person.Id,
                     FirstName = person.FirstName,

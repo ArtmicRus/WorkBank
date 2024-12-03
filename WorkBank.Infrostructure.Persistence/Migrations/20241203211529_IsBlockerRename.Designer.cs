@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WorkBank.Database;
@@ -11,9 +12,11 @@ using WorkBank.Database;
 namespace WorkBank.Infrostructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241203211529_IsBlockerRename")]
+    partial class IsBlockerRename
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -43,7 +46,7 @@ namespace WorkBank.Infrostructure.Persistence.Migrations
 
                     b.HasIndex("PersonId");
 
-                    b.ToTable("Credits", (string)null);
+                    b.ToTable("Credits");
                 });
 
             modelBuilder.Entity("WorkBank.Domain.Models.Passport", b =>
@@ -70,7 +73,7 @@ namespace WorkBank.Infrostructure.Persistence.Migrations
                     b.HasIndex("PersonId")
                         .IsUnique();
 
-                    b.ToTable("Passports", (string)null);
+                    b.ToTable("Passports");
                 });
 
             modelBuilder.Entity("WorkBank.Domain.Models.Person", b =>
@@ -98,7 +101,7 @@ namespace WorkBank.Infrostructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Persons", (string)null);
+                    b.ToTable("Persons");
                 });
 
             modelBuilder.Entity("WorkBank.Domain.Models.Credit", b =>

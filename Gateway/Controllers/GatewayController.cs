@@ -75,6 +75,8 @@ namespace Gateway.Controllers
 
             await _applicationDbContext.Credits.AddAsync(credit);
 
+            await _applicationDbContext.SaveChangesAsync();
+
             SendToRabbit(request);
 
             return Ok("Кредит успешно оформлен");
@@ -85,17 +87,17 @@ namespace Gateway.Controllers
         /// </summary>
         /// <param name="errorMessage">Сущность для записи всех замечаний запроса</param>
         /// <param name="request">Запрос на кредит</param>
-        private async Task<PersonDto> GetPeopleInformation(StringBuilder errorMessage, RequestFromPhysicalPerson request)
+        private async Task<PersonPassportDataDto> GetPeopleInformation(StringBuilder errorMessage, RequestFromPhysicalPerson request)
         {
             var passportDataServiceUrl = $"http://localhost:5129/Passport/person-information?Serie={request.Passport.Serie}&Number={request.Passport.Number}";
             var response = await _httpClient.GetAsync(passportDataServiceUrl);
 
-            PersonDto passportDataServiceResponse = null!;
+            PersonPassportDataDto passportDataServiceResponse = null!;
 
             // Проверка и чтение ответа на запрос
             if (response.StatusCode == HttpStatusCode.OK)
             {
-                passportDataServiceResponse = await response.Content.ReadFromJsonAsync<PersonDto>();
+                passportDataServiceResponse = await response.Content.ReadFromJsonAsync<PersonPassportDataDto>();
 
                 if (passportDataServiceResponse is not null)
                 {
@@ -137,7 +139,7 @@ namespace Gateway.Controllers
             var dateOnly = request.Person.Birthdate;
             var dateTime = new DateTime(dateOnly.Year, dateOnly.Month, dateOnly.Day);
 
-            if (IsAdult(dateTime))
+            if (!IsAdult(dateTime))
             {
                 errorMessage.AppendLine("Оформить кредит можно только лицам достигшим 18 лет");
             }
@@ -168,7 +170,7 @@ namespace Gateway.Controllers
         /// </summary>
         /// <param name="errorMessage">Сущность для записи всех замечаний запроса</param>
         /// <param name="request">Запрос на кредит</param>
-        private Task FinalCreditValidate(StringBuilder errorMessage, RequestFromPhysicalPerson request, PersonDto person)
+        private Task FinalCreditValidate(StringBuilder errorMessage, RequestFromPhysicalPerson request, PersonPassportDataDto person)
         {
             if (person is not null)
             {
