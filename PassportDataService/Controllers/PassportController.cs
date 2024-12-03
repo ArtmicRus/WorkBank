@@ -8,7 +8,14 @@ namespace PassportDataService.Controllers
     [Route("[controller]")]
     public class PassportController : ControllerBase
     {
+        /// <summary>
+        /// Логгер
+        /// </summary>
         private readonly ILogger<PassportController> _logger;
+
+        /// <summary>
+        /// Контекст базы данных
+        /// </summary>
         private readonly IApplicationDbContext _applicationDbContext;
 
         public PassportController(ILogger<PassportController> logger,
@@ -18,6 +25,10 @@ namespace PassportDataService.Controllers
             _applicationDbContext = applicationDbContext;
         }
 
+        /// <summary>
+        /// Получение информации о пользователе
+        /// </summary>
+        /// <param name="passportDto">Паспортные данные</param>
         [HttpGet]
         [Route("person-information")]
         public IActionResult Get([FromQuery] PassportDto passportDto)
@@ -31,6 +42,7 @@ namespace PassportDataService.Controllers
             {
                 PersonDto pDto = new PersonDto
                 {
+                    Id = person.Id,
                     FirstName = person.FirstName,
                     LastName = person.LastName,
                     Birthdate = person.Birthdate,
