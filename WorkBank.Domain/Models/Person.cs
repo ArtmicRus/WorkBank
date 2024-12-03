@@ -2,15 +2,25 @@
 {
     public class Person : BaseEntity
     {
+        /// <summary>
+        /// Имя
+        /// </summary>
         public string FirstName { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Фамилия
+        /// </summary>
         public string LastName { get; set; } = string.Empty;
 
-        public bool IsBlocked {  get; set; } = false;
-
+        /// <summary>
+        /// Дата рождения
+        /// </summary>
         public DateOnly Birthdate { get; set; }
 
-        //public long PassportId {  get; set; }
+        /// <summary>
+        /// Признак блокировки пользователя
+        /// </summary>
+        public bool IsBlocked {  get; set; } = false;
 
         List<Credit> Credits { get; set; } = new List<Credit>();
 

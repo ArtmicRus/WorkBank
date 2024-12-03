@@ -15,25 +15,20 @@ namespace Gateway.Controllers
     public class GatewayController : ControllerBase
     {
         /// <summary>
-        /// 
+        /// Логгер
         /// </summary>
         private readonly ILogger<GatewayController> _logger;
 
         /// <summary>
-        /// 
+        /// Контекст базы данных
         /// </summary>
         private readonly IApplicationDbContext _applicationDbContext;
 
         /// <summary>
-        /// 
+        /// Http клиент
         /// </summary>
         private readonly HttpClient _httpClient;
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="logger"></param>
-        /// <param name="applicationDbContext"></param>
         public GatewayController(ILogger<GatewayController> logger,
             IApplicationDbContext applicationDbContext,
             HttpClient httpClient)
@@ -43,19 +38,64 @@ namespace Gateway.Controllers
             _httpClient = httpClient;
         }
 
-
+        /// <summary>
+        /// Оформление кредита
+        /// </summary>
+        /// <param name="request">Запрос на оформление кредита</param>
         [HttpPost]
         [Route("post-request")]
-        public IActionResult Get(RequestFromPhysicalPerson request)
+        public async Task<IActionResult> Get(RequestFromPhysicalPerson request)
         {
             StringBuilder errorMessage = new StringBuilder();
 
-            var passportDataServiceUrl = $"http://localhost:5129/Passport/person-information?Serie={request.Passport.Serie}&Number={request.Passport.Number}";
-            var response = _httpClient.GetAsync(passportDataServiceUrl);
+            var person = await GetPeopleInformation(errorMessage, request);
 
-            if(response.Result.StatusCode == HttpStatusCode.OK)
+            RequestValidate(errorMessage, request);
+
+            try
             {
-                var passportDataServiceResponse = response.Result.Content.ReadFromJsonAsync<PersonDto>().Result;
+                await CheckBlacklist(errorMessage, request);
+            }
+            catch (Exception)
+            {
+                return BadRequest("Ошибка! Во время проверки информации о нахождении пользователя в чёрном списке.");
+            }
+
+            await FinalCreditValidate(errorMessage, request, person);
+
+            if (errorMessage.Length > 0)
+                return BadRequest(errorMessage.ToString());
+
+            Credit credit = new Credit 
+            {
+                Summa = request.Request.Summa,
+                Period = request.Request.Period,
+                PersonId = person!.Id
+            };
+
+            await _applicationDbContext.Credits.AddAsync(credit);
+
+            SendToRabbit(request);
+
+            return Ok("Кредит успешно оформлен");
+        }
+
+        /// <summary>
+        /// Получение информации о пользователе
+        /// </summary>
+        /// <param name="errorMessage">Сущность для записи всех замечаний запроса</param>
+        /// <param name="request">Запрос на кредит</param>
+        private async Task<PersonDto> GetPeopleInformation(StringBuilder errorMessage, RequestFromPhysicalPerson request)
+        {
+            var passportDataServiceUrl = $"http://localhost:5129/Passport/person-information?Serie={request.Passport.Serie}&Number={request.Passport.Number}";
+            var response = await _httpClient.GetAsync(passportDataServiceUrl);
+
+            PersonDto passportDataServiceResponse = null!;
+
+            // Проверка и чтение ответа на запрос
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                passportDataServiceResponse = await response.Content.ReadFromJsonAsync<PersonDto>();
 
                 if (passportDataServiceResponse is not null)
                 {
@@ -74,12 +114,16 @@ namespace Gateway.Controllers
                 errorMessage.AppendLine("Пользователь не зарегистрирован в системе");
             }
 
-            var person = _applicationDbContext.Persons
-                .Where(p => p.Passport.Serie == request.Passport.Serie
-                    && p.Passport.Number == request.Passport.Number)
-                .FirstOrDefault();
+            return passportDataServiceResponse!;
+        }
 
-
+        /// <summary>
+        /// Валидация запроса на кредит
+        /// </summary>
+        /// <param name="errorMessage">Сущность для записи всех замечаний запроса</param>
+        /// <param name="request">Запрос на кредит</param>
+        private static void RequestValidate(StringBuilder errorMessage, RequestFromPhysicalPerson request)
+        {
             if (request.Request.Summa < 10000 || request.Request.Summa > 10000000)
             {
                 errorMessage.AppendLine("Сумма запроса должна быть в диапозоне от 10000 до 10000000");
@@ -97,11 +141,19 @@ namespace Gateway.Controllers
             {
                 errorMessage.AppendLine("Оформить кредит можно только лицам достигшим 18 лет");
             }
+        }
 
+        /// <summary>
+        /// Проверка пользователя по ЧС
+        /// </summary>
+        /// <param name="errorMessage">Сущность для записи всех замечаний запроса</param>
+        /// <param name="request">Запрос на кредит</param>
+        private async Task CheckBlacklist(StringBuilder errorMessage, RequestFromPhysicalPerson request)
+        {
             var blackListUrl = $"http://localhost:5010/BlackList/check-blacklist?Serie={request.Passport.Serie}&Number={request.Passport.Number}";
-            var blackListResponse = _httpClient.GetAsync(blackListUrl);
+            var blackListResponse = await _httpClient.GetAsync(blackListUrl);
 
-            var blackListResultString = blackListResponse.Result.Content.ReadAsStringAsync().Result;
+            var blackListResultString = blackListResponse.Content.ReadAsStringAsync().Result;
             if (bool.TryParse(blackListResultString, out bool isBlocked))
             {
                 if (isBlocked)
@@ -109,14 +161,18 @@ namespace Gateway.Controllers
                     errorMessage.AppendLine("Пользователь находится в чёрном списке");
                 }
             }
-            else
-            {
-                return BadRequest("Invalid boolean value received from the other API.");
-            }
+        }
 
+        /// <summary>
+        /// Проверка кредитной истории
+        /// </summary>
+        /// <param name="errorMessage">Сущность для записи всех замечаний запроса</param>
+        /// <param name="request">Запрос на кредит</param>
+        private Task FinalCreditValidate(StringBuilder errorMessage, RequestFromPhysicalPerson request, PersonDto person)
+        {
             if (person is not null)
             {
-                var personCredits =_applicationDbContext.Credits.Where(c => c.PersonId == person.Id);
+                var personCredits = _applicationDbContext.Credits.Where(c => c.PersonId == person!.Id);
                 if (personCredits.Count() >= 5)
                 {
                     errorMessage.AppendLine("У вас не может быть больше 5 кредитов");
@@ -127,32 +183,18 @@ namespace Gateway.Controllers
 
                 if (creditsSum > 20000000)
                 {
-                    errorMessage.AppendLine("Сумма ваших кредитов не может привышать 20'000'000");
+                    errorMessage.AppendLine("Сумма ваших кредитов не может привышать 20000000");
                 }
             }
 
-            //SendToRabbit(request);
-
-            if(errorMessage.Length > 0)
-                return BadRequest(errorMessage.ToString());
-
-            Credit credit = new Credit 
-            {
-                Summa = request.Request.Summa,
-                Period = request.Request.Period,
-                PersonId = person.Id
-            };
-
-            _applicationDbContext.Credits.Add(credit);
-
-            return Ok("Кредит успешно оформлен");
+            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Отправка сообщения в кролика
         /// </summary>
         /// <param name="request"></param>
-        private Task SendToRabbit(RequestFromPhysicalPerson request)
+        private void SendToRabbit(RequestFromPhysicalPerson request)
         {
             // Создание подключения к серверу
             var factory = new ConnectionFactory { HostName = "localhost" };
@@ -176,9 +218,13 @@ namespace Gateway.Controllers
                                  basicProperties: null, // Свойства сообщения. Это могут быть такие параметры, как заголовки, идентификатор сообщения, приоритет и т.п. В примере эти свойства не указаны (null), так что будут использованы стандартные значения.
                                  body: body); // Тело сообщения. Здесь передается непосредственно само сообщение, которое нужно отправить. В переменной body содержится информация, которую вы хотите передать через RabbitMQ
 
-            return Task.CompletedTask;
+            return;
         }
 
+        /// <summary>
+        /// Проверка возраста пользователя
+        /// </summary>
+        /// <param name="dateOfBirth">Дата рождения</param>
         private static bool IsAdult(DateTime dateOfBirth)
         {
             // Текущая дата
